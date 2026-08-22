@@ -1,0 +1,6 @@
+{
+  "name": "Login App",
+  "description": "A distinctive login app designed faithfully after the Untitled layout with username and password authentication, right/wrong feedback, and Google Sign-in account creation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
