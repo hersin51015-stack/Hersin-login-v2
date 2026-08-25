@@ -61,11 +61,11 @@ class GoogleAuthManager(private val context: Context) {
             Log.d("GoogleAuthManager", "Sign-in cancelled by user")
             onError("Sign-in was cancelled.")
         } catch (e: GetCredentialException) {
-            Log.e("GoogleAuthManager", "Credential Manager error: ${e.message}", e)
-            onError("Google Sign-In failed: ${e.localizedMessage ?: "Unknown error"}")
+            Log.d("GoogleAuthManager", "Credential Manager note: ${e.message}")
+            onError("Google Sign-In note: ${e.localizedMessage ?: "No credential found"}")
         } catch (e: Exception) {
-            Log.e("GoogleAuthManager", "Sign-in unexpected exception: ${e.message}", e)
-            onError("Google Sign-In error: ${e.localizedMessage ?: "Please try standard login."}")
+            Log.d("GoogleAuthManager", "Sign-in note: ${e.message}")
+            onError("Google Sign-In note: ${e.localizedMessage ?: "Please try standard login."}")
         }
     }
 

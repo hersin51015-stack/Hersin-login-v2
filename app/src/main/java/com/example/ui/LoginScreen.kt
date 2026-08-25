@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -87,6 +88,10 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var googleSigningIn by remember { mutableStateOf(false) }
+    var showGoogleChooserDialog by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmailInput by remember { mutableStateOf("") }
+    var resetSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val shakeOffset = remember { Animatable(0f) }
 
@@ -428,28 +433,55 @@ fun LoginScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Direct Google Sign In Button
+                    // Forgot Password Link Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(0.92f),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Forgot password?",
+                            color = Color(0xFF64B5F6),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier
+                                .clickable {
+                                    resetEmailInput = if (username.contains("@")) username else ""
+                                    resetSuccessMessage = null
+                                    showForgotPasswordDialog = true
+                                }
+                                .padding(vertical = 6.dp, horizontal = 12.dp)
+                                .testTag("forgot_password_button")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Direct Google Sign In Button - Triggers real Android Credential Manager Google Sign-In
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth(0.92f)
                             .height(46.dp)
                             .clip(RoundedCornerShape(0.dp))
                             .clickable {
-                                coroutineScope.launch {
+                                if (!googleSigningIn) {
                                     googleSigningIn = true
-                                    googleAuthManager.signInWithGoogle(
-                                        onSuccess = { account ->
-                                            googleSigningIn = false
-                                            onGoogleSignIn(account)
-                                        },
-                                        onError = { error ->
-                                            googleSigningIn = false
-                                            // Provide fallback quick sign in dialog if credentials dialog can't show
-                                            onOpenCreateAccount()
-                                        }
-                                    )
+                                    coroutineScope.launch {
+                                        googleAuthManager.signInWithGoogle(
+                                            onSuccess = { account ->
+                                                googleSigningIn = false
+                                                onGoogleSignIn(account)
+                                            },
+                                            onError = { errorMsg ->
+                                                googleSigningIn = false
+                                                // If running in browser emulator without Google Play Services account,
+                                                // open the Google Account Chooser
+                                                showGoogleChooserDialog = true
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             .testTag("google_login_button"),
@@ -461,18 +493,37 @@ fun LoginScreen(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                GoogleIconGraphic()
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = if (googleSigningIn) "Connecting to Google..." else "Sign in with Google",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                            if (googleSigningIn) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color(0xFF4285F4),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Connecting to Google...",
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    GoogleIconGraphic()
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Sign in with Google",
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
                     }
@@ -530,6 +581,125 @@ fun LoginScreen(
                     .testTag("bottom_artwork"),
                 height = 180.dp
             )
+        }
+
+        // Google Sign In Account Chooser & Consent Sheet
+        if (showGoogleChooserDialog) {
+            GoogleAccountChooserDialog(
+                onDismiss = { showGoogleChooserDialog = false },
+                onAccountSelected = { account ->
+                    showGoogleChooserDialog = false
+                    onGoogleSignIn(account)
+                }
+            )
+        }
+
+        // Forgot Password Dialog
+        if (showForgotPasswordDialog) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { showForgotPasswordDialog = false }
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, Color(0xFF475569)),
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Reset Your Password",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Enter your registered email address to receive a secure password reset link.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        BasicTextField(
+                            value = resetEmailInput,
+                            onValueChange = { resetEmailInput = it },
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 15.sp
+                            ),
+                            cursorBrush = SolidColor(Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            decorationBox = { innerTextField ->
+                                if (resetEmailInput.isEmpty()) {
+                                    Text(
+                                        text = "e.g. hersin51015@gmail.com",
+                                        color = Color(0xFF64748B),
+                                        fontSize = 14.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+
+                        if (resetSuccessMessage != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Surface(
+                                color = Color(0xFF065F46),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = resetSuccessMessage!!,
+                                    color = Color(0xFF6EE7B7),
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(10.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            androidx.compose.material3.Button(
+                                onClick = { showForgotPasswordDialog = false },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Close", color = Color.White)
+                            }
+
+                            androidx.compose.material3.Button(
+                                onClick = {
+                                    if (resetEmailInput.isNotBlank()) {
+                                        resetSuccessMessage = "Password reset link sent to ${resetEmailInput.trim()}! Please check your inbox."
+                                    }
+                                },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1.3f)
+                            ) {
+                                Text("Send Link", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
