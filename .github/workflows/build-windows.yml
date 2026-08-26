@@ -1,4 +1,4 @@
-name: Build Android APK & Windows Distributions
+name: Build Android APK & Windows EXE
 
 on:
   push:
@@ -44,27 +44,63 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: login-app-debug-apk
+          name: login-app-android-apk
           path: app/build/outputs/apk/debug/*.apk
+
+  build-windows-exe:
+    name: Build Windows 7 to 11 EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Standalone Windows EXE
+        shell: pwsh
+        run: |
+          dotnet build windows/LoginApp.csproj -c Release
+          $exePath = Get-ChildItem -Path "windows/bin/Release" -Filter "*.exe" -Recurse | Select-Object -First 1
+          if ($exePath) {
+            New-Item -ItemType Directory -Force -Path "release-exe"
+            Copy-Item -Path $exePath.FullName -Destination "release-exe/LoginApp-Windows7-11.exe"
+          } else {
+            dotnet publish windows/LoginApp.csproj -c Release -r win-x64 --self-contained false -o release-exe
+          }
+
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-app-windows7-11-exe
+          path: release-exe/*.exe
 
   release:
     name: Create GitHub Release
-    needs: build-apk
+    needs: [build-apk, build-windows-exe]
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Built APK
+      - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: login-app-debug-apk
-          path: release-artifacts
+          name: login-app-android-apk
+          path: release-all
+
+      - name: Download Windows EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: login-app-windows7-11-exe
+          path: release-all
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-artifacts/*.apk
+          files: release-all/*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
