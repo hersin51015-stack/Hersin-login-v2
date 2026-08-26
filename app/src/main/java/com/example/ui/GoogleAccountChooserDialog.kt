@@ -65,21 +65,23 @@ fun GoogleAccountChooserDialog(
     var isSigningIn by remember { mutableStateOf(false) }
     var signingInAccountName by remember { mutableStateOf("") }
 
-    fun logUserIn(email: String) {
+    fun logUserIn(email: String, displayName: String? = null) {
         isSigningIn = true
         signingInAccountName = email
-        val name = email.substringBefore("@")
+        val finalName = displayName ?: email.substringBefore("@")
             .replace(".", " ")
             .replace("_", " ")
             .split(" ")
-            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+            .joinToString(" ") { word ->
+                word.lowercase().replaceFirstChar { it.uppercase() }
+            }
             .ifBlank { "Google User" }
 
         val account = UserAccount(
             username = email.substringBefore("@").replace(".", "_"),
             password = "google_authenticated",
             email = email,
-            displayName = name,
+            displayName = finalName,
             isGoogleUser = true,
             avatarEmoji = "🌐"
         )
@@ -113,7 +115,7 @@ fun GoogleAccountChooserDialog(
                         .fillMaxWidth()
                         .padding(top = 12.dp, bottom = 16.dp)
                 ) {
-                    // Top Bar Header mimicking Google Chrome / Google Accounts Window
+                    // Top Bar Header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -162,7 +164,7 @@ fun GoogleAccountChooserDialog(
                             Text(
                                 text = "Signing in with Google...",
                                 color = Color(0xFF202124),
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(4.dp))
@@ -173,9 +175,6 @@ fun GoogleAccountChooserDialog(
                             )
                         }
                     } else {
-                        // -------------------------------------------------------------
-                        // Official "Choose an account" layout matching the screenshot
-                        // -------------------------------------------------------------
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -210,22 +209,66 @@ fun GoogleAccountChooserDialog(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                            // 1. Account Option: Quick 1-tap sign-in
+                            // 1. Account Option: hersin51015@gmail.com
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
                                     .clickable {
-                                        logUserIn("google.user@gmail.com")
+                                        logUserIn("hersin51015@gmail.com", "Hersin")
                                     }
-                                    .padding(vertical = 12.dp),
+                                    .padding(vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(38.dp)
+                                        .background(Color(0xFF1A73E8), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "H",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                Column {
+                                    Text(
+                                        text = "Hersin",
+                                        color = Color(0xFF202124),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "hersin51015@gmail.com",
+                                        color = Color(0xFF5F6368),
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
+
+                            // 2. Account Option: google.user@gmail.com
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        logUserIn("google.user@gmail.com", "Google User")
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
                                         .background(Color(0xFF00897B), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -233,23 +276,30 @@ fun GoogleAccountChooserDialog(
                                         text = "G",
                                         color = Color.White,
                                         fontSize = 18.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
 
-                                Text(
-                                    text = "google.user@gmail.com",
-                                    color = Color(0xFF3C4043),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Normal
-                                )
+                                Column {
+                                    Text(
+                                        text = "Google Account",
+                                        color = Color(0xFF202124),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "google.user@gmail.com",
+                                        color = Color(0xFF5F6368),
+                                        fontSize = 13.sp
+                                    )
+                                }
                             }
 
                             HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
 
-                            // 2. "Use another account" (Allows ANY user to type any account)
+                            // 3. "Use another account" (Allows user to type ANY email)
                             if (!showCustomInput) {
                                 Row(
                                     modifier = Modifier
@@ -266,7 +316,7 @@ fun GoogleAccountChooserDialog(
                                         modifier = Modifier.size(28.dp)
                                     )
 
-                                    Spacer(modifier = Modifier.width(20.dp))
+                                    Spacer(modifier = Modifier.width(18.dp))
 
                                     Text(
                                         text = "Use another account",
@@ -279,6 +329,7 @@ fun GoogleAccountChooserDialog(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(top = 10.dp)
                                         .background(Color(0xFFF8F9FA), RoundedCornerShape(8.dp))
                                         .border(1.dp, Color(0xFFDADCE0), RoundedCornerShape(8.dp))
                                         .padding(14.dp)
@@ -321,7 +372,7 @@ fun GoogleAccountChooserDialog(
                                         decorationBox = { innerTextField ->
                                             if (customEmailInput.isEmpty()) {
                                                 Text(
-                                                    text = "e.g. yourname@gmail.com",
+                                                    text = "e.g. name@gmail.com",
                                                     color = Color(0xFF80868B),
                                                     fontSize = 14.sp
                                                 )
@@ -355,7 +406,7 @@ fun GoogleAccountChooserDialog(
 
                             HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
 
-                            Spacer(modifier = Modifier.height(36.dp))
+                            Spacer(modifier = Modifier.height(28.dp))
 
                             // Bottom Footer: Language selector + Help Privacy Terms
                             Row(

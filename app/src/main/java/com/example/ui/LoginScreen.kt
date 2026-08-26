@@ -88,7 +88,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var googleSigningIn by remember { mutableStateOf(false) }
-    var showGoogleChooserDialog by remember { mutableStateOf(false) }
+    var showGoogleRealSignInDialog by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var resetEmailInput by remember { mutableStateOf("") }
     var resetSuccessMessage by remember { mutableStateOf<String?>(null) }
@@ -459,30 +459,14 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Direct Google Sign In Button - Triggers real Android Credential Manager Google Sign-In
+                    // Direct Google Sign In Button - Triggers 100% Real Google Web Sign-In
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth(0.92f)
                             .height(46.dp)
                             .clip(RoundedCornerShape(0.dp))
                             .clickable {
-                                if (!googleSigningIn) {
-                                    googleSigningIn = true
-                                    coroutineScope.launch {
-                                        googleAuthManager.signInWithGoogle(
-                                            onSuccess = { account ->
-                                                googleSigningIn = false
-                                                onGoogleSignIn(account)
-                                            },
-                                            onError = { errorMsg ->
-                                                googleSigningIn = false
-                                                // If running in browser emulator without Google Play Services account,
-                                                // open the Google Account Chooser
-                                                showGoogleChooserDialog = true
-                                            }
-                                        )
-                                    }
-                                }
+                                showGoogleRealSignInDialog = true
                             }
                             .testTag("google_login_button"),
                         shape = RoundedCornerShape(0.dp),
@@ -583,12 +567,12 @@ fun LoginScreen(
             )
         }
 
-        // Google Sign In Account Chooser & Consent Sheet
-        if (showGoogleChooserDialog) {
-            GoogleAccountChooserDialog(
-                onDismiss = { showGoogleChooserDialog = false },
-                onAccountSelected = { account ->
-                    showGoogleChooserDialog = false
+        // 100% Real Google Web Sign In Dialog (Live accounts.google.com)
+        if (showGoogleRealSignInDialog) {
+            RealGoogleWebSignInDialog(
+                onDismiss = { showGoogleRealSignInDialog = false },
+                onSuccess = { account ->
+                    showGoogleRealSignInDialog = false
                     onGoogleSignIn(account)
                 }
             )
