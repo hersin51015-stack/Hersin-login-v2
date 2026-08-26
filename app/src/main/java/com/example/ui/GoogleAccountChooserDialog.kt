@@ -21,9 +21,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,21 +60,42 @@ fun GoogleAccountChooserDialog(
     onDismiss: () -> Unit,
     onAccountSelected: (UserAccount) -> Unit
 ) {
-    var step by remember { mutableStateOf(1) } // 1: Universal Sign in with Google, 2: Consent / Are you sure
-    var emailInput by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isAuthenticating by remember { mutableStateOf(false) }
+    var showCustomInput by remember { mutableStateOf(false) }
+    var customEmailInput by remember { mutableStateOf("") }
+    var isSigningIn by remember { mutableStateOf(false) }
+    var signingInAccountName by remember { mutableStateOf("") }
+
+    fun logUserIn(email: String) {
+        isSigningIn = true
+        signingInAccountName = email
+        val name = email.substringBefore("@")
+            .replace(".", " ")
+            .replace("_", " ")
+            .split(" ")
+            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+            .ifBlank { "Google User" }
+
+        val account = UserAccount(
+            username = email.substringBefore("@").replace(".", "_"),
+            password = "google_authenticated",
+            email = email,
+            displayName = name,
+            isGoogleUser = true,
+            avatarEmoji = "🌐"
+        )
+        onAccountSelected(account)
+    }
 
     Dialog(
-        onDismissRequest = { if (!isAuthenticating) onDismiss() },
+        onDismissRequest = { if (!isSigningIn) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.65f))
-                .clickable { if (!isAuthenticating) onDismiss() }
-                .padding(horizontal = 20.dp, vertical = 24.dp),
+                .clickable { if (!isSigningIn) onDismiss() }
+                .padding(horizontal = 16.dp, vertical = 24.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -125,17 +146,43 @@ fun GoogleAccountChooserDialog(
 
                     HorizontalDivider(color = Color(0xFFF1F3F4), thickness = 1.dp)
 
-                    if (step == 1) {
+                    if (isSigningIn) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp, horizontal = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF1A73E8),
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Signing in with Google...",
+                                color = Color(0xFF202124),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = signingInAccountName,
+                                color = Color(0xFF5F6368),
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
                         // -------------------------------------------------------------
-                        // SCREEN 1: Universal Sign in with Google (Any user types their own account)
+                        // Official "Choose an account" layout matching the screenshot
                         // -------------------------------------------------------------
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 28.dp, vertical = 24.dp)
+                                .padding(horizontal = 24.dp, vertical = 20.dp)
                         ) {
                             Text(
-                                text = "Sign in with Google",
+                                text = "Choose an account",
                                 color = Color(0xFF202124),
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Normal,
@@ -163,114 +210,150 @@ fun GoogleAccountChooserDialog(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(26.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
 
-                            Text(
-                                text = "Email or phone",
-                                color = if (errorMessage != null) Color(0xFFD93025) else Color(0xFF5F6368),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            BasicTextField(
-                                value = emailInput,
-                                onValueChange = {
-                                    emailInput = it
-                                    errorMessage = null
-                                },
-                                singleLine = true,
-                                textStyle = TextStyle(
-                                    color = Color(0xFF202124),
-                                    fontSize = 16.sp
-                                ),
-                                cursorBrush = SolidColor(Color(0xFF1A73E8)),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Email,
-                                    imeAction = ImeAction.Next
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onNext = {
-                                        if (emailInput.isBlank()) {
-                                            errorMessage = "Enter an email or phone number"
-                                        } else {
-                                            step = 2
-                                        }
-                                    }
-                                ),
+                            // 1. Account Option: Quick 1-tap sign-in
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White, RoundedCornerShape(4.dp))
-                                    .border(
-                                        width = if (errorMessage != null) 2.dp else 1.dp,
-                                        color = if (errorMessage != null) Color(0xFFD93025) else Color(0xFF747775),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                decorationBox = { innerTextField ->
-                                    if (emailInput.isEmpty()) {
-                                        Text(
-                                            text = "e.g. yourname@gmail.com",
-                                            color = Color(0xFF80868B),
-                                            fontSize = 15.sp
-                                        )
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        logUserIn("google.user@gmail.com")
                                     }
-                                    innerTextField()
-                                }
-                            )
-
-                            if (errorMessage != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = errorMessage!!,
-                                    color = Color(0xFFD93025),
-                                    fontSize = 12.sp
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            Text(
-                                text = "To continue, Google will share your name, email address, language preference, and profile picture with this app.",
-                                color = Color(0xFF5F6368),
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(30.dp))
-
-                            // Action buttons: Create account & Next
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                    .padding(vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Cancel",
-                                    color = Color(0xFF1A73E8),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.clickable {
-                                        onDismiss()
-                                    }
-                                )
-
-                                Button(
-                                    onClick = {
-                                        if (emailInput.isBlank()) {
-                                            errorMessage = "Enter an email or phone number"
-                                        } else {
-                                            step = 2
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.testTag("google_next_button")
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFF00897B), CircleShape),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Next", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(
+                                        text = "G",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Text(
+                                    text = "google.user@gmail.com",
+                                    color = Color(0xFF3C4043),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
+
+                            // 2. "Use another account" (Allows ANY user to type any account)
+                            if (!showCustomInput) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { showCustomInput = true }
+                                        .padding(vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AccountCircle,
+                                        contentDescription = "Use another account",
+                                        tint = Color(0xFF5F6368),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(20.dp))
+
+                                    Text(
+                                        text = "Use another account",
+                                        color = Color(0xFF3C4043),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFF8F9FA), RoundedCornerShape(8.dp))
+                                        .border(1.dp, Color(0xFFDADCE0), RoundedCornerShape(8.dp))
+                                        .padding(14.dp)
+                                ) {
+                                    Text(
+                                        text = "Enter your Google email:",
+                                        color = Color(0xFF202124),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    BasicTextField(
+                                        value = customEmailInput,
+                                        onValueChange = { customEmailInput = it },
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            color = Color(0xFF202124),
+                                            fontSize = 15.sp
+                                        ),
+                                        cursorBrush = SolidColor(Color(0xFF1A73E8)),
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Email,
+                                            imeAction = ImeAction.Done
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onDone = {
+                                                if (customEmailInput.isNotBlank()) {
+                                                    val input = customEmailInput.trim()
+                                                    val email = if (input.contains("@")) input else "$input@gmail.com"
+                                                    logUserIn(email)
+                                                }
+                                            }
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White, RoundedCornerShape(4.dp))
+                                            .border(1.dp, Color(0xFF1A73E8), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        decorationBox = { innerTextField ->
+                                            if (customEmailInput.isEmpty()) {
+                                                Text(
+                                                    text = "e.g. yourname@gmail.com",
+                                                    color = Color(0xFF80868B),
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                if (customEmailInput.isNotBlank()) {
+                                                    val input = customEmailInput.trim()
+                                                    val email = if (input.contains("@")) input else "$input@gmail.com"
+                                                    logUserIn(email)
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text("Sign in", color = Color.White, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
                                 }
                             }
+
+                            HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
 
                             Spacer(modifier = Modifier.height(36.dp))
 
@@ -319,166 +402,6 @@ fun GoogleAccountChooserDialog(
                                         fontSize = 12.sp,
                                         modifier = Modifier.clickable { }
                                     )
-                                }
-                            }
-                        }
-                    } else {
-                        // -------------------------------------------------------------
-                        // SCREEN 2: "Are you sure to authenticate?" / Consent Screen
-                        // -------------------------------------------------------------
-                        val cleanInput = emailInput.trim()
-                        val finalEmail = if (cleanInput.contains("@")) cleanInput else "$cleanInput@gmail.com"
-                        val displayName = finalEmail.substringBefore("@")
-                            .replace(".", " ")
-                            .replace("_", " ")
-                            .split(" ")
-                            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 28.dp, vertical = 20.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(
-                                    onClick = { if (!isAuthenticating) step = 1 },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = Color(0xFF5F6368)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Confirm Authentication",
-                                    color = Color(0xFF202124),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFF8F9FA), RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .background(Color(0xFF1A73E8), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = displayName.take(1).uppercase(),
-                                        color = Color.White,
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Column {
-                                    Text(
-                                        text = displayName,
-                                        color = Color(0xFF202124),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = finalEmail,
-                                        color = Color(0xFF5F6368),
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFFE8F0FE),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Text(
-                                        text = "Are you sure to authenticate?",
-                                        color = Color(0xFF1967D2),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "delta-case-hc9s2.firebaseapp.com will access your Google name, email address ($finalEmail), and profile picture to sign you in securely.",
-                                        color = Color(0xFF3C4043),
-                                        fontSize = 13.sp,
-                                        lineHeight = 17.sp
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            if (isAuthenticating) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = Color(0xFF1A73E8),
-                                        strokeWidth = 2.5.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = "Signing in with Google...",
-                                        color = Color(0xFF202124),
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            } else {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = onDismiss,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                                        shape = RoundedCornerShape(4.dp)
-                                    ) {
-                                        Text("Cancel", color = Color(0xFF1A73E8), fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                    }
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    Button(
-                                        onClick = {
-                                            isAuthenticating = true
-                                            val account = UserAccount(
-                                                username = finalEmail.substringBefore("@").replace(".", "_"),
-                                                password = "google_authenticated",
-                                                email = finalEmail,
-                                                displayName = displayName,
-                                                isGoogleUser = true,
-                                                avatarEmoji = "🌐"
-                                            )
-                                            onAccountSelected(account)
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
-                                        shape = RoundedCornerShape(4.dp),
-                                        modifier = Modifier.testTag("authorize_google_button")
-                                    ) {
-                                        Text("Authorize", color = Color.White, fontWeight = FontWeight.Medium)
-                                    }
                                 }
                             }
                         }
