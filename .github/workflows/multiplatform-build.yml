@@ -73,9 +73,11 @@ jobs:
       - name: Compile Windows 7-11 Executable (.exe)
         shell: pwsh
         run: |
-          dotnet publish windows/LoginApp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o release-exe
-          if (-not (Test-Path "release-exe/LoginApp-Windows7-11.exe")) {
-            $createdExe = Get-ChildItem -Path "release-exe" -Filter "*.exe" | Select-Object -First 1
+          dotnet build windows/LoginApp.csproj -c Release -o release-exe
+          if (Test-Path "release-exe/LoginApp-Windows7-11.exe") {
+            Write-Host "EXE compiled successfully!"
+          } else {
+            $createdExe = Get-ChildItem -Path "release-exe" -Filter "*.exe" -Recurse | Select-Object -First 1
             if ($createdExe) {
               Copy-Item $createdExe.FullName "release-exe/LoginApp-Windows7-11.exe"
             }
