@@ -5,6 +5,5 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>LoginApp-Windows7-11</AssemblyName>
     <RootNamespace>LoginApp</RootNamespace>
-    <ApplicationIcon>app_icon.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>

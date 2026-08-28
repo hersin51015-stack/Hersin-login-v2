@@ -23,8 +23,6 @@ namespace LoginApp
         private TextBox txtUsername;
         private TextBox txtPassword;
         private Label lblError;
-        private Label lblUserDisplay;
-        private Label lblUserEmail;
 
         public MainForm()
         {

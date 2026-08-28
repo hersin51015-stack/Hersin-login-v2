@@ -62,13 +62,12 @@ jobs:
       - name: Build Standalone Windows EXE
         shell: pwsh
         run: |
-          dotnet build windows/LoginApp.csproj -c Release
-          $exePath = Get-ChildItem -Path "windows/bin/Release" -Filter "*.exe" -Recurse | Select-Object -First 1
-          if ($exePath) {
-            New-Item -ItemType Directory -Force -Path "release-exe"
-            Copy-Item -Path $exePath.FullName -Destination "release-exe/LoginApp-Windows7-11.exe"
-          } else {
-            dotnet publish windows/LoginApp.csproj -c Release -r win-x64 --self-contained false -o release-exe
+          dotnet publish windows/LoginApp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o release-exe
+          if (-not (Test-Path "release-exe/LoginApp-Windows7-11.exe")) {
+            $createdExe = Get-ChildItem -Path "release-exe" -Filter "*.exe" | Select-Object -First 1
+            if ($createdExe) {
+              Copy-Item $createdExe.FullName "release-exe/LoginApp-Windows7-11.exe"
+            }
           }
 
       - name: Upload Windows EXE Artifact
