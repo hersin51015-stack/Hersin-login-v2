@@ -1,17 +1,21 @@
-# HCM Portal - Login App (Android & Windows 7-11)
+# HCM Portal (Multi-Platform Build Suite)
 
-A complete multi-platform application supporting Android and native Windows desktop (.exe).
-
----
-
-## 💻 Download for Windows 7, 8, 10 & 11 (.EXE)
-
-1. Go to the **Actions** or **Releases** tab on GitHub.
-2. Click on the latest build workflow run (with the green checkmark).
-3. Under **Artifacts**, download **`login-app-windows7-11-exe`**.
-4. Extract the zip file and double-click **`LoginApp-Windows7-11.exe`** to run natively on Windows 7, 8, 10, or 11!
+A cross-platform application with native support for **Android**, **Windows (7 to 11)**, and **iOS**.
 
 ---
 
-## 📱 Download for Android (.APK)
-- Under **Artifacts**, download **`login-app-android-apk`** for phones, tablets, or Android emulators.
+## 📦 Downloads & Formats
+
+### 1. 🪟 Windows (.EXE) - Windows 7, 8.1, 10, and 11
+- Go to the **Actions** tab on GitHub $\rightarrow$ Latest build.
+- Download **`LoginApp-Windows7-11-EXE`**.
+- Extract the zip and run **`LoginApp-Windows7-11.exe`** directly (Single-file standalone executable).
+
+### 2. 📱 Apple iOS (.IPA) - iPhone & iPad
+- Go to the **Actions** tab on GitHub $\rightarrow$ Latest build.
+- Download **`LoginApp-iOS-IPA`**.
+- Sideload or install via **AltStore**, **Sideloadly**, **TrollStore**, or Xcode Simulator.
+
+### 3. 🤖 Android (.APK) - Android 7.0+
+- Download **`LoginApp-Android-APK`** from the **Actions** tab.
+- Install directly onto your Android device or emulator.
