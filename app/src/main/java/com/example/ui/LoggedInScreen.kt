@@ -24,10 +24,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,7 +40,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,8 +62,11 @@ import com.example.model.UserAccount
 fun LoggedInScreen(
     user: UserAccount,
     onSignOut: () -> Unit,
+    onDeleteAccount: (UserAccount) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -202,6 +214,37 @@ fun LoggedInScreen(
                                 fontSize = 14.sp
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Delete Account Button (Danger / Destructive)
+                        OutlinedButton(
+                            onClick = { showDeleteConfirmDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("delete_account_button"),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color(0xFFEF4444).copy(alpha = 0.05f),
+                                contentColor = Color(0xFFEF4444)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteForever,
+                                contentDescription = "Delete Account",
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Delete Account",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
                     }
                 }
             }
@@ -210,6 +253,93 @@ fun LoggedInScreen(
             UntitledBottomArtwork(
                 modifier = Modifier.fillMaxWidth(),
                 height = 170.dp
+            )
+        }
+
+        // Delete Account Confirmation Alert Dialog
+        if (showDeleteConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmDialog = false },
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFEF4444).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Warning",
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Delete Account?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Are you sure you want to permanently delete account @${user.username}?",
+                            color = Color(0xFF1E293B),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "This action is permanent and cannot be undone. Your profile, authentication records, and associated data will be removed.",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.5.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmDialog = false
+                            onDeleteAccount(user)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC2626),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.testTag("confirm_delete_account_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete Permanently", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteConfirmDialog = false },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = Color(0xFF64748B)
+                        ),
+                        modifier = Modifier.testTag("cancel_delete_account_button")
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(12.dp)
             )
         }
     }

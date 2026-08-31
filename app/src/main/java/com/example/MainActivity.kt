@@ -68,6 +68,9 @@ fun MainAppContent(
             onSignOut = {
                 viewModel.signOut()
             },
+            onDeleteAccount = { accountToDelete ->
+                viewModel.deleteAccount(accountToDelete)
+            },
             modifier = modifier
         )
     } else {

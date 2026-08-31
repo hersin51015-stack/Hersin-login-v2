@@ -226,7 +226,7 @@ namespace LoginApp
             Form chooser = new Form
             {
                 Text = "Sign in with Google",
-                Size = new Size(380, 420),
+                Size = new Size(420, 480),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
@@ -234,77 +234,304 @@ namespace LoginApp
                 BackColor = Color.White
             };
 
-            Label title = new Label
+            Panel contentPanel = new Panel
             {
-                Text = "Choose an account\nto continue to HCM Portal",
-                Font = new Font("Segoe UI", 12, FontStyle.Regular),
-                Location = new Point(24, 20),
-                Size = new Size(320, 50)
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding = new Padding(24)
             };
 
-            Button acc1 = new Button
-            {
-                Text = "Hersin\nhersin51015@gmail.com",
-                Location = new Point(24, 80),
-                Size = new Size(316, 52),
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.FromArgb(248, 249, 250),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f),
-                Cursor = Cursors.Hand
-            };
-            acc1.FlatAppearance.BorderColor = Color.FromArgb(220, 220, 220);
-            acc1.Click += (s, e) =>
-            {
-                chooser.Close();
-                ShowDashboard("Hersin", "hersin51015@gmail.com", true);
-            };
+            string userEmail = "";
+            string userDisplayName = "";
 
-            Button acc2 = new Button
+            void ShowEmailStep()
             {
-                Text = "Google User\ngoogle.user@gmail.com",
-                Location = new Point(24, 142),
-                Size = new Size(316, 52),
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.FromArgb(248, 249, 250),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f),
-                Cursor = Cursors.Hand
-            };
-            acc2.FlatAppearance.BorderColor = Color.FromArgb(220, 220, 220);
-            acc2.Click += (s, e) =>
-            {
-                chooser.Close();
-                ShowDashboard("Google User", "google.user@gmail.com", true);
-            };
+                contentPanel.Controls.Clear();
 
-            Button btnWeb = new Button
-            {
-                Text = "🌐 Open Live Google Web Sign-In",
-                Location = new Point(24, 210),
-                Size = new Size(316, 40),
-                BackColor = Color.FromArgb(26, 115, 232),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnWeb.Click += (s, e) =>
-            {
-                try
+                Label brand = new Label
                 {
-                    Process.Start("https://accounts.google.com/signin/v2/identifier");
-                }
-                catch { }
-                chooser.Close();
-                ShowDashboard("Hersin", "hersin51015@gmail.com", true);
-            };
+                    Text = "G  Sign in with Google",
+                    Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(60, 64, 67),
+                    Location = new Point(24, 20),
+                    Size = new Size(350, 26)
+                };
 
-            chooser.Controls.Add(title);
-            chooser.Controls.Add(acc1);
-            chooser.Controls.Add(acc2);
-            chooser.Controls.Add(btnWeb);
+                Label title = new Label
+                {
+                    Text = "Sign in",
+                    Font = new Font("Segoe UI", 16, FontStyle.Regular),
+                    Location = new Point(24, 60),
+                    Size = new Size(350, 32)
+                };
 
+                Label sub = new Label
+                {
+                    Text = "to continue to HCM Workspace",
+                    Font = new Font("Segoe UI", 9.5f),
+                    ForeColor = Color.FromArgb(95, 99, 104),
+                    Location = new Point(24, 94),
+                    Size = new Size(350, 22)
+                };
+
+                TextBox txtEmail = new TextBox
+                {
+                    Location = new Point(24, 130),
+                    Size = new Size(350, 32),
+                    Font = new Font("Segoe UI", 11)
+                };
+
+                Label note = new Label
+                {
+                    Text = "To continue, Google will share your name, email address, and profile picture with HCM Workspace.",
+                    Font = new Font("Segoe UI", 8.5f),
+                    ForeColor = Color.FromArgb(95, 99, 104),
+                    Location = new Point(24, 180),
+                    Size = new Size(350, 44)
+                };
+
+                Button btnCancel = new Button
+                {
+                    Text = "Cancel",
+                    Location = new Point(24, 250),
+                    Size = new Size(100, 36),
+                    FlatStyle = FlatStyle.Flat,
+                    ForeColor = Color.FromArgb(26, 115, 232),
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnCancel.FlatAppearance.BorderSize = 0;
+                btnCancel.Click += (s, e) => chooser.Close();
+
+                Button btnNext = new Button
+                {
+                    Text = "Next",
+                    Location = new Point(274, 250),
+                    Size = new Size(100, 36),
+                    BackColor = Color.FromArgb(26, 115, 232),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnNext.FlatAppearance.BorderSize = 0;
+                btnNext.Click += (s, e) =>
+                {
+                    string input = txtEmail.Text.Trim();
+                    if (!string.IsNullOrWhiteSpace(input))
+                    {
+                        userEmail = input.Contains("@") ? input : input + "@gmail.com";
+                        userDisplayName = userEmail.Split('@')[0].Replace(".", " ");
+                        ShowPasswordStep();
+                    }
+                };
+
+                contentPanel.Controls.Add(brand);
+                contentPanel.Controls.Add(title);
+                contentPanel.Controls.Add(sub);
+                contentPanel.Controls.Add(txtEmail);
+                contentPanel.Controls.Add(note);
+                contentPanel.Controls.Add(btnCancel);
+                contentPanel.Controls.Add(btnNext);
+            }
+
+            void ShowPasswordStep()
+            {
+                contentPanel.Controls.Clear();
+
+                Label title = new Label
+                {
+                    Text = "Welcome",
+                    Font = new Font("Segoe UI", 16, FontStyle.Regular),
+                    Location = new Point(24, 30),
+                    Size = new Size(350, 32)
+                };
+
+                Label pill = new Label
+                {
+                    Text = "🔒 " + userEmail,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(60, 64, 67),
+                    BackColor = Color.FromArgb(241, 243, 244),
+                    Location = new Point(24, 70),
+                    Size = new Size(350, 26),
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+
+                Label sub = new Label
+                {
+                    Text = "Enter your Google password:",
+                    Font = new Font("Segoe UI", 9.5f),
+                    ForeColor = Color.FromArgb(95, 99, 104),
+                    Location = new Point(24, 115),
+                    Size = new Size(350, 20)
+                };
+
+                TextBox txtPass = new TextBox
+                {
+                    Location = new Point(24, 140),
+                    Size = new Size(350, 32),
+                    Font = new Font("Segoe UI", 11),
+                    PasswordChar = '●'
+                };
+
+                CheckBox chkShow = new CheckBox
+                {
+                    Text = "Show password",
+                    Location = new Point(24, 180),
+                    Size = new Size(200, 24),
+                    Font = new Font("Segoe UI", 9)
+                };
+                chkShow.CheckedChanged += (s, e) => { txtPass.PasswordChar = chkShow.Checked ? '\0' : '●'; };
+
+                Button btnBack = new Button
+                {
+                    Text = "Back",
+                    Location = new Point(24, 240),
+                    Size = new Size(90, 36),
+                    FlatStyle = FlatStyle.Flat,
+                    ForeColor = Color.FromArgb(26, 115, 232),
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnBack.FlatAppearance.BorderSize = 0;
+                btnBack.Click += (s, e) => ShowEmailStep();
+
+                Button btnNext = new Button
+                {
+                    Text = "Next",
+                    Location = new Point(274, 240),
+                    Size = new Size(100, 36),
+                    BackColor = Color.FromArgb(26, 115, 232),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnNext.FlatAppearance.BorderSize = 0;
+                btnNext.Click += (s, e) =>
+                {
+                    if (txtPass.Text.Length >= 4)
+                    {
+                        Show2FAStep();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Please enter your account password.", "Google Sign-In", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                };
+
+                contentPanel.Controls.Add(title);
+                contentPanel.Controls.Add(pill);
+                contentPanel.Controls.Add(sub);
+                contentPanel.Controls.Add(txtPass);
+                contentPanel.Controls.Add(chkShow);
+                contentPanel.Controls.Add(btnBack);
+                contentPanel.Controls.Add(btnNext);
+            }
+
+            void Show2FAStep()
+            {
+                contentPanel.Controls.Clear();
+                int promptNum = new Random().Next(10, 99);
+
+                Label title = new Label
+                {
+                    Text = "2-Step Verification",
+                    Font = new Font("Segoe UI", 15, FontStyle.Regular),
+                    Location = new Point(24, 20),
+                    Size = new Size(350, 30)
+                };
+
+                Label sub = new Label
+                {
+                    Text = "Google sent a notification to your phone. Tap Yes on the prompt, then match this number:",
+                    Font = new Font("Segoe UI", 9.5f),
+                    ForeColor = Color.FromArgb(95, 99, 104),
+                    Location = new Point(24, 55),
+                    Size = new Size(350, 42)
+                };
+
+                Label badge = new Label
+                {
+                    Text = promptNum.ToString(),
+                    Font = new Font("Segoe UI", 28, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(26, 115, 232),
+                    BackColor = Color.FromArgb(232, 240, 254),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Location = new Point(140, 110),
+                    Size = new Size(110, 65)
+                };
+
+                Button btnConfirm = new Button
+                {
+                    Text = "✓ I tapped Yes on my device",
+                    Location = new Point(24, 200),
+                    Size = new Size(350, 40),
+                    BackColor = Color.FromArgb(26, 115, 232),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnConfirm.FlatAppearance.BorderSize = 0;
+                btnConfirm.Click += (s, e) =>
+                {
+                    chooser.Close();
+                    ShowDashboard(userDisplayName, userEmail, true);
+                };
+
+                Label altText = new Label
+                {
+                    Text = "Or enter 6-digit Authenticator / 8-digit backup code:",
+                    Font = new Font("Segoe UI", 8.5f),
+                    ForeColor = Color.FromArgb(95, 99, 104),
+                    Location = new Point(24, 260),
+                    Size = new Size(350, 20)
+                };
+
+                TextBox txtCode = new TextBox
+                {
+                    Location = new Point(24, 285),
+                    Size = new Size(230, 30),
+                    Font = new Font("Segoe UI", 11)
+                };
+
+                Button btnVerifyCode = new Button
+                {
+                    Text = "Verify Code",
+                    Location = new Point(264, 283),
+                    Size = new Size(110, 34),
+                    BackColor = Color.FromArgb(241, 243, 244),
+                    ForeColor = Color.FromArgb(60, 64, 67),
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnVerifyCode.Click += (s, e) =>
+                {
+                    if (txtCode.Text.Trim().Length >= 6)
+                    {
+                        chooser.Close();
+                        ShowDashboard(userDisplayName, userEmail, true);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Please enter a valid 6-digit Authenticator code or 8-digit backup code.", "2-Step Verification", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                };
+
+                contentPanel.Controls.Add(title);
+                contentPanel.Controls.Add(sub);
+                contentPanel.Controls.Add(badge);
+                contentPanel.Controls.Add(btnConfirm);
+                contentPanel.Controls.Add(altText);
+                contentPanel.Controls.Add(txtCode);
+                contentPanel.Controls.Add(btnVerifyCode);
+            }
+
+            ShowEmailStep();
+            chooser.Controls.Add(contentPanel);
             chooser.ShowDialog(this);
         }
 
@@ -390,18 +617,52 @@ namespace LoginApp
             Button btnLogout = new Button
             {
                 Text = "Sign Out",
-                Location = new Point(16, 380),
+                Location = new Point(16, 340),
                 Size = new Size(330, 40),
-                BackColor = Color.FromArgb(217, 48, 37),
+                BackColor = Color.FromArgb(32, 33, 36),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
+            btnLogout.FlatAppearance.BorderSize = 0;
             btnLogout.Click += (s, e) =>
             {
                 this.Controls.Remove(loggedInPanel);
                 loginPanel.Visible = true;
+            };
+
+            Button btnDeleteAccount = new Button
+            {
+                Text = "🗑 Delete Account",
+                Location = new Point(16, 390),
+                Size = new Size(330, 38),
+                BackColor = Color.FromArgb(254, 242, 242),
+                ForeColor = Color.FromArgb(220, 38, 38),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnDeleteAccount.FlatAppearance.BorderColor = Color.FromArgb(252, 165, 165);
+            btnDeleteAccount.Click += (s, e) =>
+            {
+                var result = MessageBox.Show(
+                    "Are you sure you want to permanently delete your account (" + name + ")?\n\nThis action cannot be undone.",
+                    "Confirm Account Deletion",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    this.Controls.Remove(loggedInPanel);
+                    loginPanel.Visible = true;
+                    txtUsername.Text = "";
+                    txtPassword.Text = "";
+                    lblError.Text = "Account (" + name + ") was permanently deleted.";
+                    lblError.ForeColor = Color.FromArgb(30, 142, 62);
+                    lblError.Visible = true;
+                }
             };
 
             card.Controls.Add(cardTitle);
@@ -409,6 +670,7 @@ namespace LoginApp
             card.Controls.Add(lblE);
             card.Controls.Add(lblStatus);
             card.Controls.Add(btnLogout);
+            card.Controls.Add(btnDeleteAccount);
 
             loggedInPanel.Controls.Add(header);
             loggedInPanel.Controls.Add(card);

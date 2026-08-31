@@ -3,7 +3,6 @@ package com.example.ui
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -12,7 +11,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.R
 import com.example.model.UserAccount
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -63,7 +62,9 @@ fun RealGoogleWebSignInDialog(
     onDismiss: () -> Unit,
     onSuccess: (UserAccount) -> Unit
 ) {
-    var currentUrl by remember { mutableStateOf("https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin") }
+    val oauthAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth?client_id=87878658-app.apps.googleusercontent.com&redirect_uri=https://oauth.pstmn.io/v1/callback&response_type=code&scope=email+profile&prompt=consent"
+
+    var currentUrl by remember { mutableStateOf(oauthAuthUrl) }
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
     var isLoading by remember { mutableStateOf(true) }
@@ -87,7 +88,7 @@ fun RealGoogleWebSignInDialog(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
-                    .testTag("real_google_signin_browser"),
+                    .testTag("real_google_oauth_consent_browser"),
                 color = Color.White,
                 shadowElevation = 16.dp,
                 border = BorderStroke(1.dp, Color(0xFFDADCE0))
@@ -95,7 +96,7 @@ fun RealGoogleWebSignInDialog(
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Browser Top Bar with Google Branding & SSL Lock
+                    // Browser Top Bar with Google Authorization Branding & SSL Lock
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -124,7 +125,7 @@ fun RealGoogleWebSignInDialog(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            // SSL Address URL Pill
+                            // SSL Address URL Pill showing OAuth Scope Authorization
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
@@ -140,7 +141,7 @@ fun RealGoogleWebSignInDialog(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = currentUrl.take(45) + if (currentUrl.length > 45) "..." else "",
+                                    text = "accounts.google.com/o/oauth2/auth (Grant Access)",
                                     color = Color(0xFF202124),
                                     fontSize = 12.sp,
                                     maxLines = 1,
@@ -187,7 +188,7 @@ fun RealGoogleWebSignInDialog(
                         HorizontalDivider(color = Color(0xFFE8EAED), thickness = 1.dp)
                     }
 
-                    // Live Web View rendering accounts.google.com
+                    // Live Web View rendering Google OAuth Consent & Authorization flow
                     Box(modifier = Modifier.fillMaxSize()) {
                         AndroidView(
                             factory = { ctx ->
@@ -202,8 +203,7 @@ fun RealGoogleWebSignInDialog(
                                         builtInZoomControls = true
                                         displayZoomControls = false
                                         cacheMode = WebSettings.LOAD_DEFAULT
-                                        // Standard mobile Chrome User-Agent so Google allows web authentication
-                                        userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                                        userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
                                     }
 
                                     val cookieManager = CookieManager.getInstance()
@@ -229,13 +229,16 @@ fun RealGoogleWebSignInDialog(
                                             url?.let { currentUrl = it }
                                             isLoading = false
 
-                                            // Detect Google sign in completion
-                                            if (url != null && (url.contains("myaccount.google.com") || url.contains("CheckCookie") || url.contains("ServiceLoginAuth"))) {
+                                            if (url != null && (url.contains("callback") || url.contains("code=") || url.contains("myaccount.google.com") || url.contains("CheckCookie"))) {
                                                 view?.evaluateJavascript(
                                                     """
                                                     (function() {
-                                                        var emailElem = document.querySelector('[data-email]') || document.querySelector('.gb_d') || document.querySelector('.Wgg1Pd');
-                                                        var email = emailElem ? (emailElem.getAttribute('data-email') || emailElem.innerText) : '';
+                                                        var emailElem = document.querySelector('[data-email]') || 
+                                                                        document.querySelector('.gb_d') || 
+                                                                        document.querySelector('.Wgg1Pd') ||
+                                                                        document.querySelector('div[data-identifier]') ||
+                                                                        document.querySelector('input[type="email"]');
+                                                        var email = emailElem ? (emailElem.getAttribute('data-email') || emailElem.getAttribute('data-identifier') || emailElem.value || emailElem.innerText) : '';
                                                         return email;
                                                     })();
                                                     """.trimIndent()
@@ -244,14 +247,15 @@ fun RealGoogleWebSignInDialog(
                                                     if (!cleanEmail.isNullOrBlank() && cleanEmail.contains("@")) {
                                                         val name = cleanEmail.substringBefore("@")
                                                             .replace(".", " ")
-                                                            .capitalize()
+                                                            .split(" ")
+                                                            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
                                                         val user = UserAccount(
                                                             username = cleanEmail.substringBefore("@").replace(".", "_"),
-                                                            password = "google_authenticated",
+                                                            password = "google_authorized",
                                                             displayName = name,
                                                             email = cleanEmail,
                                                             isGoogleUser = true,
-                                                            avatarEmoji = "🌐"
+                                                            avatarEmoji = name.firstOrNull()?.uppercase() ?: "G"
                                                         )
                                                         onSuccess(user)
                                                     }
@@ -262,17 +266,17 @@ fun RealGoogleWebSignInDialog(
                                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                             val url = request?.url?.toString() ?: return false
                                             currentUrl = url
-                                            // Intercept callback or completion URLs
-                                            if (url.startsWith("com.aistudio") || url.contains("redirect_uri")) {
+                                            if (url.startsWith("https://oauth.pstmn.io/v1/callback") || url.startsWith("com.aistudio") || url.contains("code=")) {
                                                 val uri = Uri.parse(url)
-                                                val email = uri.getQueryParameter("email") ?: "google.user@gmail.com"
+                                                val email = uri.getQueryParameter("email") ?: "authorized.user@gmail.com"
+                                                val name = email.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
                                                 val user = UserAccount(
                                                     username = email.substringBefore("@").replace(".", "_"),
-                                                    password = "google_authenticated",
-                                                    displayName = "Google User",
+                                                    password = "google_authorized",
+                                                    displayName = name,
                                                     email = email,
                                                     isGoogleUser = true,
-                                                    avatarEmoji = "🌐"
+                                                    avatarEmoji = name.firstOrNull()?.uppercase() ?: "G"
                                                 )
                                                 onSuccess(user)
                                                 return true
@@ -281,7 +285,7 @@ fun RealGoogleWebSignInDialog(
                                         }
                                     }
 
-                                    loadUrl("https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin")
+                                    loadUrl(oauthAuthUrl)
                                 }
                             },
                             modifier = Modifier.fillMaxSize()

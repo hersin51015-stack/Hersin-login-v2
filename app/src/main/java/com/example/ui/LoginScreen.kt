@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
@@ -83,13 +84,16 @@ fun LoginScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val googleAuthManager = remember(context) { GoogleAuthManager(context) }
+    val firebaseBackendService = remember(context) { com.example.auth.FirebaseBackendService(context) }
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var googleSigningIn by remember { mutableStateOf(false) }
-    var showGoogleRealSignInDialog by remember { mutableStateOf(false) }
+    var showRealGoogleWebSignIn by remember { mutableStateOf(false) }
+    var showGoogleAccountChooser by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var showFirebaseStatusDialog by remember { mutableStateOf(false) }
     var resetEmailInput by remember { mutableStateOf("") }
     var resetSuccessMessage by remember { mutableStateOf<String?>(null) }
 
@@ -459,14 +463,14 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Direct Google Sign In Button - Triggers 100% Real Google Web Sign-In
+                    // Direct Google Sign In Button - Triggers Live Real Google Sign In
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth(0.92f)
                             .height(46.dp)
                             .clip(RoundedCornerShape(0.dp))
                             .clickable {
-                                showGoogleRealSignInDialog = true
+                                showRealGoogleWebSignIn = true
                             }
                             .testTag("google_login_button"),
                         shape = RoundedCornerShape(0.dp),
@@ -525,23 +529,28 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { showFirebaseStatusDialog = true },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Info",
-                            tint = Color(0xFF64748B),
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = "Cloud Database & Auth",
+                            tint = Color(0xFF38BDF8),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Demo account: admin / password123",
+                            text = "Firebase Auth & Firestore",
                             color = Color(0xFF94A3B8),
                             fontSize = 11.sp
                         )
                     }
 
                     Text(
-                        text = "Fill",
+                        text = "Fill Demo",
                         color = Color(0xFF38BDF8),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -567,14 +576,34 @@ fun LoginScreen(
             )
         }
 
-        // 100% Real Google Web Sign In Dialog (Live accounts.google.com)
-        if (showGoogleRealSignInDialog) {
+        // Firebase Status Dialog
+        if (showFirebaseStatusDialog) {
+            FirebaseStatusDialog(
+                isConfigured = firebaseBackendService.isConfigured(),
+                onDismiss = { showFirebaseStatusDialog = false }
+            )
+        }
+
+        // Real Google Web Sign-In Dialog (Loads live accounts.google.com)
+        if (showRealGoogleWebSignIn) {
             RealGoogleWebSignInDialog(
-                onDismiss = { showGoogleRealSignInDialog = false },
+                onDismiss = { showRealGoogleWebSignIn = false },
                 onSuccess = { account ->
-                    showGoogleRealSignInDialog = false
+                    showRealGoogleWebSignIn = false
                     onGoogleSignIn(account)
                 }
+            )
+        }
+
+        // Google Account Chooser Dialog (Lets any user choose or enter their own Google Account)
+        if (showGoogleAccountChooser) {
+            GoogleAccountChooserDialog(
+                onDismiss = { showGoogleAccountChooser = false },
+                onAccountSelected = { account ->
+                    showGoogleAccountChooser = false
+                    onGoogleSignIn(account)
+                },
+                savedAccounts = userAccounts
             )
         }
 

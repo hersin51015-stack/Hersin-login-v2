@@ -70,6 +70,26 @@ class AuthViewModel : ViewModel() {
         )
     }
 
+    fun deleteAccount(account: UserAccount) {
+        _registeredAccounts.update { currentList ->
+            currentList.filterNot { it.username.equals(account.username, ignoreCase = true) }
+        }
+        if (_currentUser.value?.username?.equals(account.username, ignoreCase = true) == true) {
+            _currentUser.value = null
+            _authStatus.value = AuthStatus.Success(
+                account,
+                "Account @${account.username} was permanently deleted."
+            )
+        }
+    }
+
+    fun deleteAccountByUsername(username: String) {
+        val target = _registeredAccounts.value.find { it.username.equals(username, ignoreCase = true) }
+        if (target != null) {
+            deleteAccount(target)
+        }
+    }
+
     fun signOut() {
         _currentUser.value = null
         _authStatus.value = AuthStatus.Idle

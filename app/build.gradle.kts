@@ -73,5 +73,12 @@ dependencies {
   implementation(platform(libs.firebase.bom))
   implementation(libs.firebase.auth)
   implementation(libs.firebase.firestore)
+  testImplementation(libs.junit)
+  testImplementation(libs.androidx.junit)
+  testImplementation(libs.androidx.core)
+  testImplementation(libs.androidx.runner)
+  testImplementation(libs.robolectric)
+  testImplementation(libs.kotlinx.coroutines.test)
   debugImplementation(libs.androidx.compose.ui.tooling)
 }
+

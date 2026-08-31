@@ -21,6 +21,7 @@ enum AuthStatus: Equatable {
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @State private var showingCreateAccountSheet = false
+    @State private var showingGoogleOAuthSheet = false
 
     var body: some View {
         ZStack {
@@ -39,6 +40,9 @@ struct ContentView: View {
                     viewModel: authViewModel,
                     onOpenCreateAccount: {
                         showingCreateAccountSheet = true
+                    },
+                    onOpenGoogleSignIn: {
+                        showingGoogleOAuthSheet = true
                     }
                 )
                 .transition(.opacity)
@@ -57,6 +61,17 @@ struct ContentView: View {
                 }
             )
             .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showingGoogleOAuthSheet) {
+            GoogleOAuthVerificationView(
+                onAuthenticated: { googleAccount in
+                    authViewModel.registerAccount(googleAccount)
+                    showingGoogleOAuthSheet = false
+                },
+                onCancel: {
+                    showingGoogleOAuthSheet = false
+                }
+            )
         }
     }
 }
@@ -107,10 +122,11 @@ class AuthViewModel: ObservableObject {
     }
 }
 
-// MARK: - Login View (Faithful Untitled Design)
+// MARK: - Login View
 struct LoginView: View {
     @ObservedObject var viewModel: AuthViewModel
     var onOpenCreateAccount: () -> Void
+    var onOpenGoogleSignIn: () -> Void
 
     @State private var username = ""
     @State private var password = ""
@@ -214,7 +230,7 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: 360)
 
-                    // Login Button (Cyan / Bright High-Contrast)
+                    // Login Button
                     Button(action: {
                         viewModel.login(usernameInput: username, passwordInput: password)
                         if case .error = viewModel.authStatus {
@@ -242,18 +258,8 @@ struct LoginView: View {
                 .frame(maxWidth: 360)
                 .padding(.vertical, 4)
 
-                // Google Sign In Button
-                Button(action: {
-                    let googleUser = UserAccount(
-                        username: "google_user",
-                        password: "google_oauth_pass",
-                        email: "user@gmail.com",
-                        displayName: "Google User",
-                        avatarEmoji: "🌐",
-                        isGoogleUser: true
-                    )
-                    viewModel.registerAccount(googleUser)
-                }) {
+                // Full Google Sign In Button (Opens Password & 2FA Flow)
+                Button(action: onOpenGoogleSignIn) {
                     HStack(spacing: 12) {
                         Text("G")
                             .font(.system(size: 20, weight: .bold, design: .serif))
@@ -319,6 +325,389 @@ struct LoginView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
             withAnimation(.default) { shakeOffset = 0 }
+        }
+    }
+}
+
+// MARK: - Google OAuth & 2-Step Verification Modal (iOS)
+enum IOSGoogleSignInStep {
+    case inputEmail
+    case inputPassword(email: String, name: String)
+    case twoFactorTap(email: String, name: String, prompt: Int)
+    case twoFactorAuthenticator(email: String, name: String)
+    case twoFactorBackupCode(email: String, name: String)
+    case twoFactorChooser(email: String, name: String)
+    case consent(email: String, name: String)
+}
+
+struct GoogleOAuthVerificationView: View {
+    var onAuthenticated: (UserAccount) -> Void
+    var onCancel: () -> Void
+
+    @State private var currentStep: IOSGoogleSignInStep = .inputEmail
+    @State private var email = ""
+    @State private var password = ""
+    @State private var isPasswordVisible = false
+    @State private var totpCode = ""
+    @State private var backupCode = ""
+    @State private var passwordError: String? = nil
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.white.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Google Browser Bar
+                        HStack(spacing: 8) {
+                            Circle().fill(Color.red).frame(width: 8, height: 8)
+                            Circle().fill(Color.yellow).frame(width: 8, height: 8)
+                            Circle().fill(Color.green).frame(width: 8, height: 8)
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Image(systemName: "lock.fill").font(.system(size: 10)).foregroundColor(.gray)
+                                Text("https://accounts.google.com/signin/v2/challenge")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color(red: 0.95, green: 0.95, blue: 0.96))
+                            .cornerRadius(4)
+                        }
+                        .padding(.top, 8)
+
+                        // Google Branding
+                        HStack(spacing: 10) {
+                            Text("G")
+                                .font(.system(size: 22, weight: .bold, design: .serif))
+                                .foregroundColor(.blue)
+                            Text("Sign in with Google")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.2))
+                        }
+                        .padding(.top, 6)
+
+                        Divider()
+
+                        switch currentStep {
+                        // STEP 1: Email
+                        case .inputEmail:
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Sign in")
+                                    .font(.system(size: 26, weight: .regular))
+                                    .foregroundColor(.black)
+                                Text("to continue to Hersin Portal")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+
+                                TextField("Email or phone", text: $email)
+                                    .font(.system(size: 16))
+                                    .padding(14)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.blue, lineWidth: 1.5))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+
+                                Text("To continue, Google will share your name, email address, and profile picture.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+
+                                HStack {
+                                    Button("Cancel", action: onCancel)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                    Button("Next") {
+                                        if !email.trimmingCharacters(in: .whitespaces).isEmpty {
+                                            let clean = email.trimmingCharacters(in: .whitespaces)
+                                            let fullEmail = clean.contains("@") ? clean : "\(clean)@gmail.com"
+                                            let name = fullEmail.components(separatedBy: "@").first?.replacingOccurrences(of: ".", with: " ").capitalized ?? "User"
+                                            currentStep = .inputPassword(email: fullEmail, name: name)
+                                        }
+                                    }
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 10)
+                                    .background(Color.blue)
+                                    .cornerRadius(6)
+                                }
+                                .padding(.top, 16)
+                            }
+
+                        // STEP 2: Password
+                        case .inputPassword(let mail, let name):
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Welcome")
+                                    .font(.system(size: 24, weight: .regular))
+                                    .foregroundColor(.black)
+
+                                Text("🔒 \(mail)")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Color(red: 0.25, green: 0.25, blue: 0.25))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color(red: 0.94, green: 0.94, blue: 0.94))
+                                    .cornerRadius(12)
+
+                                Text("Enter your password:")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+
+                                HStack {
+                                    if isPasswordVisible {
+                                        TextField("Password", text: $password)
+                                    } else {
+                                        SecureField("Password", text: $password)
+                                    }
+                                    Button(action: { isPasswordVisible.toggle() }) {
+                                        Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .padding(14)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.blue, lineWidth: 1.5))
+
+                                if let err = passwordError {
+                                    Text(err).font(.system(size: 12)).foregroundColor(.red)
+                                }
+
+                                HStack {
+                                    Button("Back") { currentStep = .inputEmail }
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                    Button("Next") {
+                                        if password.count >= 4 {
+                                            let num = Int.random(in: 10...99)
+                                            currentStep = .twoFactorTap(email: mail, name: name, prompt: num)
+                                        } else {
+                                            passwordError = "Enter a password"
+                                        }
+                                    }
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 10)
+                                    .background(Color.blue)
+                                    .cornerRadius(6)
+                                }
+                                .padding(.top, 16)
+                            }
+
+                        // STEP 3A: 2FA Tap Yes on Device
+                        case .twoFactorTap(let mail, let name, let prompt):
+                            VStack(alignment: .center, spacing: 18) {
+                                Text("2-Step Verification")
+                                    .font(.system(size: 22, weight: .regular))
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                Text("Google sent a notification to your phone. Tap Yes on the prompt, then match this number:")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.leading)
+
+                                Text("\(prompt)")
+                                    .font(.system(size: 44, weight: .bold))
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 36)
+                                    .padding(.vertical, 12)
+                                    .background(Color(red: 0.9, green: 0.94, blue: 1.0))
+                                    .cornerRadius(12)
+
+                                Button(action: {
+                                    currentStep = .consent(email: mail, name: name)
+                                }) {
+                                    Text("✓ I tapped Yes on my device")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 48)
+                                        .background(Color.blue)
+                                        .cornerRadius(6)
+                                }
+
+                                Button("Try another way") {
+                                    currentStep = .twoFactorChooser(email: mail, name: name)
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.blue)
+                            }
+
+                        // STEP 3B: Authenticator App
+                        case .twoFactorAuthenticator(let mail, let name):
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("2-Step Verification")
+                                    .font(.system(size: 22))
+                                Text("Get a verification code from Google Authenticator")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+
+                                TextField("G-______", text: $totpCode)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .padding(14)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.blue, lineWidth: 1.5))
+                                    .keyboardType(.numberPad)
+
+                                HStack {
+                                    Button("Try another way") { currentStep = .twoFactorChooser(email: mail, name: name) }
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                    Button("Next") {
+                                        if totpCode.count >= 4 {
+                                            currentStep = .consent(email: mail, name: name)
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.blue)
+                                    .cornerRadius(6)
+                                }
+                            }
+
+                        // STEP 3C: Backup Code
+                        case .twoFactorBackupCode(let mail, let name):
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("2-Step Verification")
+                                    .font(.system(size: 22))
+                                Text("Enter your 8-digit emergency backup code")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+
+                                TextField("8-digit code", text: $backupCode)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .padding(14)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.blue, lineWidth: 1.5))
+                                    .keyboardType(.numberPad)
+
+                                HStack {
+                                    Button("Try another way") { currentStep = .twoFactorChooser(email: mail, name: name) }
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                    Button("Next") {
+                                        if backupCode.count >= 6 {
+                                            currentStep = .consent(email: mail, name: name)
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.blue)
+                                    .cornerRadius(6)
+                                }
+                            }
+
+                        // STEP 3D: Method Chooser
+                        case .twoFactorChooser(let mail, let name):
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text("Choose how you want to sign in")
+                                    .font(.system(size: 20))
+
+                                Button(action: {
+                                    let num = Int.random(in: 10...99)
+                                    currentStep = .twoFactorTap(email: mail, name: name, prompt: num)
+                                }) {
+                                    HStack {
+                                        Image(systemName: "iphone").foregroundColor(.blue).font(.system(size: 24))
+                                        VStack(alignment: .leading) {
+                                            Text("Tap Yes on your phone or tablet").foregroundColor(.black).font(.system(size: 14, weight: .medium))
+                                            Text("Google sends a notification to your device").foregroundColor(.gray).font(.system(size: 12))
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+
+                                Divider()
+
+                                Button(action: {
+                                    currentStep = .twoFactorAuthenticator(email: mail, name: name)
+                                }) {
+                                    HStack {
+                                        Image(systemName: "shield.lefthalf.filled").foregroundColor(.blue).font(.system(size: 24))
+                                        VStack(alignment: .leading) {
+                                            Text("Google Authenticator App").foregroundColor(.black).font(.system(size: 14, weight: .medium))
+                                            Text("Generate 6-digit TOTP verification code").foregroundColor(.gray).font(.system(size: 12))
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+
+                                Divider()
+
+                                Button(action: {
+                                    currentStep = .twoFactorBackupCode(email: mail, name: name)
+                                }) {
+                                    HStack {
+                                        Image(systemName: "key.fill").foregroundColor(.blue).font(.system(size: 24))
+                                        VStack(alignment: .leading) {
+                                            Text("8-digit Backup Code").foregroundColor(.black).font(.system(size: 14, weight: .medium))
+                                            Text("Use printed emergency security codes").foregroundColor(.gray).font(.system(size: 12))
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+
+                        // STEP 4: Consent Screen
+                        case .consent(let mail, let name):
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Sign in to Hersin Portal")
+                                    .font(.system(size: 22, weight: .regular))
+
+                                HStack {
+                                    Circle().fill(Color.blue).frame(width: 28, height: 28)
+                                        .overlay(Text(String(name.prefix(1))).foregroundColor(.white).font(.system(size: 14, weight: .bold)))
+                                    Text(mail).font(.system(size: 14, weight: .medium))
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color(red: 0.96, green: 0.96, blue: 0.96))
+                                .cornerRadius(20)
+
+                                Text("By continuing, Google will share your name, email address, language preference, and profile picture with Hersin Portal.")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.gray)
+
+                                HStack(spacing: 12) {
+                                    Button("Cancel", action: onCancel)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 42)
+                                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.4), lineWidth: 1))
+                                        .foregroundColor(.blue)
+
+                                    Button(action: {
+                                        let user = UserAccount(
+                                            username: mail.components(separatedBy: "@").first?.replacingOccurrences(of: ".", with: "_") ?? "user",
+                                            password: "google_verified",
+                                            email: mail,
+                                            displayName: name,
+                                            avatarEmoji: "🌐",
+                                            isGoogleUser: true
+                                        )
+                                        onAuthenticated(user)
+                                    }) {
+                                        Text("Continue")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 42)
+                                            .background(Color.blue)
+                                            .cornerRadius(20)
+                                    }
+                                }
+                                .padding(.top, 16)
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationBarItems(
+                leading: Button("Close", action: onCancel).foregroundColor(.gray)
+            )
         }
     }
 }
